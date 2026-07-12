@@ -50,6 +50,145 @@ are integrated:
 
 ---
 
+## Paper Write-up
+
+### Methods
+
+**Data sources.** We integrated three country-level datasets. First, we used
+biophysical NbS mitigation potential estimates from **Naturebase v3** (The Nature
+Conservancy, 2025), which provides annual sequestration and avoided-emission
+potential in tCO₂e yr⁻¹ across 20 pathways spanning cropland, forest, grassland
+and wetland ecosystems for 216 countries. We focused on the total NCS potential
+per country (`total_ncs_tco2e`), the sum across all 20 pathways, as well as
+biome-level totals (cropland, forest, grassland, wetland) and activity-type totals
+(protection, management, restoration).
+
+Second, we measured political risk using the **World Governance Indicators (WGI)**
+2024 release (World Bank). We used the Political Stability and Absence of
+Violence/Terrorism dimension (PV.EST; scale −2.5 to +2.5) as our primary measure
+of political risk, with lower scores indicating higher instability and conflict
+exposure. We also ran sensitivity analyses using all six WGI dimensions
+(Voice & Accountability, Government Effectiveness, Regulatory Quality, Rule of
+Law, and Control of Corruption).
+
+Third, we constructed two complementary measures of NbS project implementation.
+*Market-based implementation* was measured using the global database of
+**nature-based carbon offset project boundaries** (Karnik et al., 2024;
+doi:10.5281/zenodo.11459391), which catalogues 575 georeferenced projects across
+55 countries from six carbon registries (Verra, *n* = 294; Climate Action Reserve,
+*n* = 134; American Carbon Registry, *n* = 96; EcoRegistry, *n* = 33; Gold
+Standard, *n* = 17; BioCarbon Registry, *n* = 1), spanning three project types:
+Improved Forest Management (IFM, *n* = 252), Afforestation/Reforestation/
+Revegetation (ARR, *n* = 190), and Avoided Deforestation (AD, *n* = 133).
+*Community-based implementation* was measured using the **UNDP Equator Initiative
+Solutions Database**, scraped via the WordPress REST API (July 2025), yielding
+2,351 community NbS initiatives across 140 countries with geolocation data.
+
+**Analytical approach.** We matched NbS potential data with WGI scores for 189
+countries. To measure **implementation efficiency** — the degree to which countries
+translate biophysical carbon opportunity into actual projects — we computed total
+projects (market + community) per MtCO₂e yr⁻¹ of NbS potential for each country.
+Both NbS potential and the efficiency ratio were log₁₀-transformed prior to
+analysis to account for right-skewed distributions. We estimated bivariate
+relationships using Spearman rank correlations (robust to non-normality) and
+ordinary least-squares regressions controlling for income group (World Bank
+classification). All analyses were conducted in R 4.6.0.
+
+To examine how political risk constrains the *accessible* NbS portfolio under
+different risk tolerances, we constructed **cumulative potential curves** for each
+NbS type. Countries were sorted from most to least politically stable (descending
+PV.EST) and cumulative NbS potential was computed as each successive country was
+added. The resulting curves — expressed as a percentage of global type-level total
+— show the share of potential accessible if an investor or policymaker limits
+engagement to countries above a given stability threshold. We report this
+separately for four biome types (cropland, forest, grassland, wetland) and three
+activity types (protection, management, restoration), with risk zones defined at
+PV.EST thresholds of −1 (fragile), 0 (average), and +1 (stable).
+
+---
+
+### Figure Captions
+
+**Figure 1.** Political stability and NbS biophysical potential and implementation
+efficiency across 189 countries. **(A)** Country-level total NbS mitigation
+potential (Naturebase v3, 2025) as a function of political stability (WGI
+Political Stability & Absence of Violence, 2024). Countries are coloured by World
+Bank income group. The black line shows an OLS regression fit with 95% confidence
+interval (Spearman *ρ* = −0.47, *p* < 0.001). High-potential countries are
+disproportionately concentrated among lower-income, less stable nations.
+**(B)** NbS implementation efficiency — total projects (market-based carbon offset
+projects, Karnik et al. 2024, *n* = 575; and community-based NbS initiatives,
+Equator Initiative 2024, *n* = 1,677 with location data) per MtCO₂e yr⁻¹ of
+biophysical potential — as a function of political stability. Countries with high
+NbS potential but zero recorded projects are labelled. The positive slope indicates
+that more politically stable countries implement more projects relative to their
+available carbon opportunity, despite holding less absolute potential.
+
+```{r fig1-display, echo=FALSE, fig.cap="", out.width="100%"}
+knitr::include_graphics("../analysis/figures/fig_paper_main.png")
+```
+
+---
+
+**Figure 2.** Cumulative NbS mitigation potential accessible as a function of
+political risk tolerance. The x-axis represents a minimum political stability
+threshold (WGI PV.EST, 2024): reading left-to-right, progressively higher-risk
+countries are included. The y-axis shows the cumulative potential of each NbS type
+as a percentage of its global total. Coloured lines represent four **biome types**
+(Forest, Grassland, Cropland, Wetland; Naturebase v3, 2025). Grey lines represent
+three **activity types** (Protection: solid; Management: long-dash; Restoration:
+dotted). Shaded risk zones correspond to Stable (PV > 1), Moderate (0 < PV ≤ 1),
+High Risk (−1 < PV ≤ 0), and Fragile (PV < −1) country classifications. Steeper
+curves indicate greater concentration of potential in high-risk countries.
+
+```{r fig2-display, echo=FALSE, fig.cap="", out.width="100%"}
+knitr::include_graphics("../analysis/figures/fig_threshold_nbs_type.png")
+```
+
+---
+
+### Interpretation
+
+**The carbon opportunity is disproportionately located in high-risk countries.**
+Figure 1A shows a significant negative relationship between NbS biophysical
+potential and political stability (Spearman *ρ* = −0.47, *p* < 0.001): countries
+with the largest total carbon sequestration and avoided-emission potential —
+principally in the Congo Basin, Amazon, and Southeast Asia — tend to have
+substantially lower political stability scores. This is not coincidental; tropical
+forest ecosystems, which harbour the majority of global NbS potential, are
+concentrated in regions that are also among the most politically fragile.
+
+**Despite this, stable countries implement more efficiently.** Figure 1B reveals
+the implementation gap: when project counts are normalised by biophysical potential
+(projects per MtCO₂e yr⁻¹), the relationship with political stability reverses to
+positive. High-stability countries implement substantially more projects per unit of
+available carbon opportunity than their higher-risk counterparts. This divergence —
+potential inversely related to stability, but efficiency positively related — is the
+core tension motivating this paper: the places with the most to offer are
+systematically underserved by NbS investment.
+
+**The risk barrier is sharpest for protection and forest-type NbS.** Figure 2
+disaggregates this result by NbS type. Protection-type activities (solid grey line)
+show the steepest cumulative curve, meaning that their potential is most
+concentrated in fragile and high-risk countries: less than 25% of global protection
+potential lies in countries with above-average stability (PV > 0). Forest NbS
+(dark green) follows a similar pattern, with the bulk of potential entering the
+cumulative total only as the fragile zone is included. By contrast, Cropland
+(orange) and Management-type activities (long-dashed grey) show gentler curves,
+accumulating more potential in moderate- and low-risk countries, suggesting
+relatively greater opportunities for implementation without entering fragile
+contexts.
+
+**Practical implications.** For investors and policy-makers operating with strict
+risk constraints — accepting only countries with PV > 0 — the accessible global NbS
+portfolio is substantially truncated, and predominantly cropland and management
+activities. Accessing the full scale of forest protection and wetland conservation
+potential requires either accepting higher political risk or deploying risk
+mitigation instruments (political risk insurance, sovereign guarantees, blended
+finance) specifically targeted at fragile and conflict-affected states.
+
+---
+
 ## 1. Package Setup
 
 ```{r packages}
@@ -414,7 +553,8 @@ High-resolution view of the strongest governance relationship, with all
 countries labelled by income group and region.
 
 ```{r scatter-ps-detail, fig.height=7, fig.width=10}
-df %>%
+# Build as named object for reuse in two-panel figure
+panel_A <- df %>%
   filter(!is.na(PV.EST), total_ncs_tco2e > 0) %>%
   mutate(
     log_ncs = log10(total_ncs_tco2e),
@@ -425,29 +565,29 @@ df %>%
     )
   ) %>%
   ggplot(aes(x = PV.EST, y = log_ncs)) +
-  geom_point(aes(color = income_level, shape = region), alpha = 0.80, size = 2.8) +
+  geom_point(aes(color = income_level), alpha = 0.80, size = 2.5) +
   geom_smooth(method = "lm", se = TRUE, color = "black",
-              linewidth = 0.9, fill = "grey85") +
+              linewidth = 0.8, fill = "grey85") +
   geom_text_repel(
-    aes(label = label), size = 2.8, max.overlaps = 25,
-    segment.color = "grey55", segment.size = 0.3,
-    box.padding = 0.4
+    aes(label = label), size = 2.5, max.overlaps = 25,
+    segment.color = "grey55", segment.size = 0.3, box.padding = 0.4
   ) +
-  scale_color_brewer(palette = "RdYlBu", name = "Income Group",
+  scale_color_brewer(palette = "RdYlBu", name = "Income group",
                      na.value = "grey60") +
-  scale_shape_manual(
-    name   = "Region",
-    values = setNames(c(16, 17, 15, 18, 8, 4, 3),
-                      na.omit(unique(df$region)))
-  ) +
   labs(
-    x       = "Political Stability & Absence of Violence (WGI 2024, −2.5 to +2.5)",
-    y       = "Total NCS Potential (log₁₀ tCO₂e/yr)",
-    title   = "Total NCS Potential vs. Political Stability",
-    caption = "Naturebase v3 (2025); World Governance Indicators 2024"
+    x = "Political Stability & Absence of Violence (WGI 2024)",
+    y = "Total NCS Potential (log\u2081\u2080 tCO\u2082e yr\u207b\u00b9)"
   ) +
-  theme_minimal(base_size = 12) +
-  guides(shape = guide_legend(ncol = 1))
+  theme_bw(base_size = 11)
+
+panel_A
+
+dir.create(here("analysis/figures"), showWarnings = FALSE)
+ggsave(here("analysis/figures/fig1_ncs_potential.png"),
+       panel_A, width = 9, height = 7, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig1_ncs_potential.pdf"),
+       panel_A, width = 9, height = 7)
+cat("Saved: analysis/figures/fig1_ncs_potential.png (.pdf)\n")
 ```
 
 ---
@@ -733,11 +873,12 @@ largest implementation gap. Color encodes income group; size encodes number of
 market projects.
 
 ```{r karnik-gap, fig.height=6, fig.width=9}
-df_k %>%
+# Build as named object for reuse in two-panel figure
+panel_B <- df_k %>%
   filter(total_ncs_tco2e > 0, !is.na(PV.EST)) %>%
   mutate(
-    log_ncs     = log10(total_ncs_tco2e),
-    label       = if_else(
+    log_ncs = log10(total_ncs_tco2e),
+    label   = if_else(
       (total_ncs_tco2e > quantile(total_ncs_tco2e, 0.85, na.rm = TRUE) &
        n_projects == 0) |
       n_projects > 20,
@@ -747,21 +888,105 @@ df_k %>%
   ggplot(aes(x = PV.EST, y = log_ncs,
              color = income_level, size = n_projects + 0.5)) +
   geom_point(alpha = 0.75) +
-  geom_text_repel(aes(label = label), size = 2.6, max.overlaps = 15,
-                  segment.color = "grey55", show.legend = FALSE) +
-  scale_color_brewer(palette = "RdYlBu", name = "Income", na.value = "grey60") +
-  scale_size_continuous(name = "Market projects", range = c(1.5, 8),
+  geom_text_repel(aes(label = label), size = 2.5, max.overlaps = 15,
+                  segment.color = "grey55", show.legend = FALSE,
+                  segment.size = 0.3, box.padding = 0.35) +
+  scale_color_brewer(palette = "RdYlBu", name = "Income group",
+                     na.value = "grey60") +
+  scale_size_continuous(name = "Market projects (n)", range = c(1, 8),
                         breaks = c(0, 5, 20, 50, 100, 200)) +
   labs(
-    title    = "Biophysical NbS Potential vs. Political Stability",
-    subtitle = "Point size = number of market carbon offset projects (Karnik 2024)",
-    x        = "Political Stability (WGI 2024)",
-    y        = "Total NbS Potential (log₁₀ tCO₂e/yr)"
+    x = "Political Stability & Absence of Violence (WGI 2024)",
+    y = "Total NCS Potential (log\u2081\u2080 tCO\u2082e yr\u207b\u00b9)"
   ) +
-  theme_minimal(base_size = 12)
+  theme_bw(base_size = 11)
+
+panel_B
 ```
 
-### 13.5 Regression: Projects ~ NbS Potential + WGI
+### 13.5 Two-panel paper figure
+
+```{r two-panel-figure, fig.height=7, fig.width=18}
+eq_counts <- read_csv(here("data/equator/equator_nbs_database.csv"),
+                      show_col_types = FALSE) %>%
+  filter(!is.na(iso3c)) %>%
+  count(iso3c, name = "n_community_b")
+
+df_b <- df_k %>%
+  left_join(eq_counts, by = "iso3c") %>%
+  mutate(
+    n_community_b = replace_na(n_community_b, 0),
+    n_all         = n_projects + n_community_b,
+    ncs_MtCO2     = total_ncs_tco2e / 1e6,
+    proj_per_pot  = n_all / pmax(ncs_MtCO2, 0.001),
+    log_eff       = log1p(proj_per_pot),
+    label = if_else(
+      proj_per_pot > quantile(proj_per_pot, 0.88, na.rm = TRUE) |
+      (proj_per_pot == 0 &
+       ncs_MtCO2 > quantile(ncs_MtCO2, 0.80, na.rm = TRUE)),
+      adm0_name, NA_character_
+    )
+  ) %>%
+  filter(!is.na(PV.EST), ncs_MtCO2 > 0)
+
+# ── Panel B: all projects per potential, colored by income ───────────────────
+panel_B_paper <- df_b %>%
+  ggplot(aes(x = PV.EST, y = log_eff, color = income_level)) +
+  geom_point(alpha = 0.75, size = 2.0) +
+  geom_smooth(method = "lm", se = TRUE, color = "black",
+              linewidth = 0.8, fill = "grey85") +
+  geom_text_repel(aes(label = label), size = 2.3, max.overlaps = 12,
+                  segment.size = 0.3, segment.color = "grey55",
+                  box.padding = 0.35, show.legend = FALSE) +
+  scale_color_brewer(palette = "RdYlBu", name = "Income group",
+                     na.value = "grey60") +
+  labs(
+    x = "Political Stability & Absence of Violence (WGI 2024)",
+    y = "log\u2081\u2080(Projects per MtCO\u2082e yr\u207b\u00b9 + 1)"
+  ) +
+  theme_bw(base_size = 11)
+
+# ── Panel C: faceted by Market vs Community ──────────────────────────────────
+panel_C_paper <- df_b %>%
+  transmute(
+    iso3c, adm0_name, PV.EST, income_level, ncs_MtCO2,
+    Market    = log1p(n_projects    / pmax(ncs_MtCO2, 0.001)),
+    Community = log1p(n_community_b / pmax(ncs_MtCO2, 0.001))
+  ) %>%
+  pivot_longer(c(Market, Community),
+               names_to = "Database", values_to = "log_eff") %>%
+  ggplot(aes(x = PV.EST, y = log_eff, color = income_level)) +
+  geom_point(alpha = 0.65, size = 1.8) +
+  geom_smooth(method = "lm", se = TRUE, color = "black",
+              linewidth = 0.8, fill = "grey85") +
+  scale_color_brewer(palette = "RdYlBu", name = "Income group",
+                     na.value = "grey60") +
+  facet_wrap(~ Database, ncol = 2) +
+  labs(
+    x = "Political Stability & Absence of Violence (WGI 2024)",
+    y = "log\u2081\u2080(Projects per MtCO\u2082e yr\u207b\u00b9 + 1)"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(strip.text = element_text(face = "bold"))
+
+# ── Combine all three ────────────────────────────────────────────────────────
+fig_paper <- (panel_A + theme(legend.position = "none")) +
+  (panel_B_paper + theme(legend.position = "right")) +
+  plot_annotation(
+    tag_levels = "A", tag_prefix = "(", tag_suffix = ")"
+  )
+
+fig_paper
+
+dir.create(here("analysis/figures"), showWarnings = FALSE)
+ggsave(here("analysis/figures/fig_paper_main.png"),
+       fig_paper, width = 14, height = 7, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig_paper_main.pdf"),
+       fig_paper, width = 14, height = 7)
+cat("Saved: analysis/figures/fig_paper_main.png (.pdf)\n")
+```
+
+### 13.6 Regression: Projects ~ NbS Potential + WGI
 
 Do countries with higher governance implement more market-based NbS, *conditional*
 on biophysical potential?
@@ -769,11 +994,14 @@ on biophysical potential?
 ```{r karnik-reg, fig.height=5}
 df_kreg <- df_k %>%
   filter(total_ncs_tco2e > 0, !is.na(income_level)) %>%
-  mutate(log_ncs = log10(total_ncs_tco2e),
-         log_proj = log1p(n_projects))
+  mutate(
+    ncs_MtCO2    = total_ncs_tco2e / 1e6,
+    proj_per_pot = n_projects / pmax(ncs_MtCO2, 0.001),
+    log_proj_pot = log1p(proj_per_pot)
+  )
 
-# OLS on log1p(n_projects) — robust to the many-zeros structure
-m_ols <- lm(log_proj ~ log_ncs + CC.EST + GE.EST + PV.EST +
+# OLS: projects per MtCO2e potential ~ WGI (no need to control for NCS size now)
+m_ols <- lm(log_proj_pot ~ CC.EST + GE.EST + PV.EST +
               RL.EST + RQ.EST + VA.EST + income_level,
             data = df_kreg)
 
@@ -791,8 +1019,8 @@ tidy(m_ols, conf.int = TRUE) %>%
   scale_color_manual(values = c("TRUE" = "#d73027", "FALSE" = "grey55"),
                      guide = "none") +
   labs(
-    title    = "OLS: log1p(N Carbon Offset Projects) ~ WGI",
-    subtitle = sprintf("Controlling for log10(NbS potential) and income  |  Adj. R² = %.3f",
+    title    = "OLS: log1p(Market Projects per MtCO\u2082e/yr) ~ WGI",
+    subtitle = sprintf("Projects per unit NbS potential  |  Adj. R\u00b2 = %.3f",
                        summary(m_ols)$adj.r.squared),
     x = "OLS Coefficient (95% CI)", y = NULL
   ) +
@@ -801,17 +1029,798 @@ tidy(m_ols, conf.int = TRUE) %>%
 
 ---
 
-## 14. Export Merged Dataset
+## 14. Risk × Potential Quadrant Analysis
+
+The central question of this paper: **do NbS projects cluster where we expect
+them to, or does political risk systematically redirect implementation away from
+high-potential countries?**
+
+We place every country on two axes:
+
+- **X — Political Risk** (inverted WGI Political Stability; higher = more risky)
+- **Y — NbS Biophysical Potential** (log₁₀ total NCS tCO₂e/yr)
+
+Quadrant boundaries are set at the **median** of each axis. Project activity
+combines both datasets: **market-based projects** (Karnik 2024) and
+**community-based projects** (Equator Initiative).
+
+```{r load-equator}
+eq_raw <- read_csv(here("data/equator/equator_nbs_database.csv"),
+                   show_col_types = FALSE)
+
+# Aggregate to country level (use only records with ISO3)
+eq_cty <- eq_raw %>%
+  filter(!is.na(iso3c)) %>%
+  count(iso3c, name = "n_community")
+
+cat(sprintf("Equator: %d countries, %d community projects with ISO3\n",
+            nrow(eq_cty), sum(eq_cty$n_community)))
+```
+
+```{r quadrant-build}
+# Build quadrant dataset
+df_quad <- df_k %>%                         # already has Karnik joined
+  left_join(eq_cty, by = "iso3c") %>%
+  mutate(
+    n_community   = replace_na(n_community, 0),
+    n_total       = n_projects + n_community,   # market + community
+    # Political risk = inverted stability (higher = more risky)
+    risk          = -PV.EST,
+    log_ncs       = log10(replace(total_ncs_tco2e, total_ncs_tco2e <= 0, NA)),
+    # Quadrant thresholds at MEAN (more informative than median for skewed distributions)
+    risk_med      = mean(risk,    na.rm = TRUE),
+    ncs_med       = mean(log_ncs, na.rm = TRUE),
+    # Assign quadrant
+    quadrant = case_when(
+      risk >= risk_med & log_ncs >= ncs_med ~ "High Risk\nHigh Potential",
+      risk <  risk_med & log_ncs >= ncs_med ~ "Low Risk\nHigh Potential",
+      risk >= risk_med & log_ncs <  ncs_med ~ "High Risk\nLow Potential",
+      risk <  risk_med & log_ncs <  ncs_med ~ "Low Risk\nLow Potential",
+      TRUE ~ NA_character_
+    ),
+    quadrant = factor(quadrant, levels = c(
+      "Low Risk\nHigh Potential",  "High Risk\nHigh Potential",
+      "Low Risk\nLow Potential",   "High Risk\nLow Potential"
+    ))
+  ) %>%
+  filter(!is.na(quadrant))
+
+risk_med <- unique(df_quad$risk_med)
+ncs_med  <- unique(df_quad$ncs_med)
+```
+
+### 14.1 Quadrant Scatter
+
+```{r quadrant-scatter, fig.height=8, fig.width=11}
+quad_fills <- c(
+  "Low Risk\nHigh Potential"  = "#d9f0d3",   # green  — prime
+  "High Risk\nHigh Potential" = "#fddbc7",   # orange — gap
+  "Low Risk\nLow Potential"   = "#f7f7f7",   # grey   — limited
+  "High Risk\nLow Potential"  = "#e8d5e8"    # purple — double constraint
+)
+quad_labels <- tibble(
+  risk   = c(-2.2, 1.5, -2.2, 1.5),
+  log_ncs = c(ncs_med + 1.3, ncs_med + 1.3,
+              ncs_med - 1.0, ncs_med - 1.0),
+  label  = c("LOW RISK\nHIGH POTENTIAL\n(Prime for implementation)",
+             "HIGH RISK\nHIGH POTENTIAL\n(Implementation Gap)",
+             "LOW RISK\nLOW POTENTIAL\n(Limited opportunity)",
+             "HIGH RISK\nLOW POTENTIAL\n(Double constraint)"),
+  hjust  = c(0, 1, 0, 1)
+)
+
+df_quad %>%
+  mutate(
+    pt_label = if_else(
+      (n_total > 10) |
+      (log_ncs > quantile(log_ncs, 0.88, na.rm = TRUE) & n_total == 0) |
+      (risk > 1.5),
+      adm0_name, NA_character_
+    )
+  ) %>%
+  ggplot(aes(x = risk, y = log_ncs)) +
+  # Quadrant shading
+  annotate("rect", xmin = -Inf, xmax = risk_med,
+           ymin = ncs_med,  ymax = Inf,  fill = quad_fills[1], alpha = 0.55) +
+  annotate("rect", xmin = risk_med, xmax = Inf,
+           ymin = ncs_med,  ymax = Inf,  fill = quad_fills[2], alpha = 0.55) +
+  annotate("rect", xmin = -Inf, xmax = risk_med,
+           ymin = -Inf,    ymax = ncs_med, fill = quad_fills[3], alpha = 0.55) +
+  annotate("rect", xmin = risk_med, xmax = Inf,
+           ymin = -Inf,    ymax = ncs_med, fill = quad_fills[4], alpha = 0.55) +
+  # Median lines
+  geom_vline(xintercept = risk_med, linewidth = 0.5, linetype = "dashed",
+             color = "grey40") +
+  geom_hline(yintercept = ncs_med,  linewidth = 0.5, linetype = "dashed",
+             color = "grey40") +
+  # Points: size = total projects, fill = income
+  geom_point(aes(size = n_total + 0.5, fill = income_level),
+             shape = 21, alpha = 0.8, color = "white", stroke = 0.3) +
+  geom_text_repel(aes(label = pt_label), size = 2.5, max.overlaps = 18,
+                  segment.size = 0.3, segment.color = "grey50",
+                  box.padding = 0.3) +
+  # Quadrant text labels
+  geom_text(data = quad_labels,
+            aes(x = risk, y = log_ncs, label = label, hjust = hjust),
+            vjust = 0.5, size = 2.8, color = "grey30",
+            lineheight = 0.9, fontface = "italic") +
+  scale_fill_brewer(palette = "RdYlBu", name = "Income", na.value = "grey70") +
+  scale_size_continuous(name = "Total projects\n(market + community)",
+                        range = c(1.5, 9),
+                        breaks = c(0, 10, 50, 100, 150)) +
+  labs(
+    title   = "Political Risk vs. NbS Potential: Where Are the Projects?",
+    subtitle = paste0(
+      "Point size = market (Karnik 2024) + community (Equator Initiative) projects  |  ",
+      "Dashed lines at medians"
+    ),
+    x       = "Political Risk  ←  Low         High  →\n(Inverted WGI Political Stability, 2024)",
+    y       = "NbS Biophysical Potential (log₁₀ tCO₂e/yr)",
+    caption = "Naturebase v3 (2025) · WGI 2024 · Karnik et al. 2024 · Equator Initiative 2024"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "right")
+
+ggsave(here("analysis/figures/fig3_quadrants.png"),
+       last_plot(), width = 11, height = 8, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig3_quadrants.pdf"),
+       last_plot(), width = 11, height = 8)
+cat("Saved: analysis/figures/fig3_quadrants.png (.pdf)\n")
+```
+
+### 14.2 Quadrant Summary Table
+
+```{r quadrant-table}
+df_quad %>%
+  group_by(quadrant) %>%
+  summarise(
+    n_countries        = n(),
+    total_ncs_GtCO2e   = sum(10^log_ncs, na.rm = TRUE) / 1e9,
+    countries_w_market = sum(n_projects > 0),
+    total_market_proj  = sum(n_projects),
+    countries_w_comm   = sum(n_community > 0),
+    total_comm_proj    = sum(n_community),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    pct_market = round(countries_w_market / n_countries * 100),
+    pct_comm   = round(countries_w_comm   / n_countries * 100)
+  ) %>%
+  knitr::kable(
+    col.names = c("Quadrant", "Countries", "NCS Potential (Gt/yr)",
+                  "Countries w/ market project", "Market projects (n)",
+                  "Countries w/ community project", "Community projects (n)",
+                  "% w/ market", "% w/ community"),
+    digits = 1,
+    caption = "NbS Project Activity by Risk × Potential Quadrant"
+  ) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                            full_width = FALSE) %>%
+  kableExtra::column_spec(1, bold = TRUE)
+```
+
+### 14.3 Project Density by Quadrant
+
+```{r quadrant-density, fig.height=4, fig.width=9}
+df_quad %>%
+  pivot_longer(c(n_projects, n_community),
+               names_to = "type", values_to = "n") %>%
+  mutate(type = recode(type,
+    n_projects  = "Market (Karnik 2024)",
+    n_community = "Community (Equator Initiative)"
+  )) %>%
+  group_by(quadrant, type) %>%
+  summarise(total = sum(n), countries = n(), .groups = "drop") %>%
+  mutate(per_country = total / countries) %>%
+  ggplot(aes(x = quadrant, y = per_country, fill = type)) +
+  geom_col(position = position_dodge(0.8), width = 0.7) +
+  geom_text(aes(label = sprintf("%.1f", per_country)),
+            position = position_dodge(0.8), vjust = -0.4, size = 3) +
+  scale_fill_manual(values = c("Market (Karnik 2024)" = "#1a9850",
+                                "Community (Equator Initiative)" = "#2166ac"),
+                    name = NULL) +
+  scale_x_discrete(labels = function(x) gsub("\n", " / ", x)) +
+  labs(
+    title    = "Average NbS Projects per Country by Quadrant",
+    subtitle = "Market = carbon offset registries; Community = Equator Initiative",
+    x = NULL, y = "Projects per country"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "top")
+```
+
+### 14.8 Area-normalised Scatter: NCS Density × Political Risk × Implementation
+
+Both axes are normalised by country area, eliminating country-size as a
+confounder entirely:
+
+- **X** — Political Risk (inverted WGI Political Stability)
+- **Y** — NCS potential density (tCO₂e per ha per year)
+- **Size** — total projects per million ha (market + community)
+- **Colour** — income group
+
+```{r quadrant-area, fig.height=7, fig.width=10}
+panel_C <- df_quad %>%
+  mutate(
+    area_mha      = adm0_ha / 1e6,
+    ncs_per_ha    = total_ncs_tco2e / adm0_ha,
+    total_per_mha = n_total / area_mha,
+    log_ncs_ha    = log10(ncs_per_ha),
+    label = if_else(
+      (ncs_per_ha  > quantile(ncs_per_ha,    0.88, na.rm = TRUE) &
+       total_per_mha == 0) |
+      total_per_mha > quantile(total_per_mha, 0.88, na.rm = TRUE),
+      adm0_name, NA_character_
+    )
+  ) %>%
+  filter(!is.na(log_ncs_ha), is.finite(log_ncs_ha)) %>%
+  ggplot(aes(x = risk, y = log_ncs_ha)) +
+  geom_point(aes(color = income_level, size = total_per_mha + 0.01),
+             alpha = 0.78) +
+  geom_smooth(method = "lm", se = TRUE, color = "black",
+              linewidth = 0.8, fill = "grey85") +
+  geom_text_repel(aes(label = label), size = 2.5, max.overlaps = 18,
+                  segment.color = "grey55", segment.size = 0.3,
+                  box.padding = 0.35, show.legend = FALSE) +
+  scale_color_brewer(palette = "RdYlBu", name = "Income group",
+                     na.value = "grey60") +
+  scale_size_continuous(
+    name   = "Projects / million ha\n(market + community)",
+    range  = c(1, 9),
+    breaks = c(0, 0.5, 2, 5, 10, 20),
+    labels = c("0", "0.5", "2", "5", "10", "20")
+  ) +
+  labs(
+    x = "Political Risk  \u2190 Low         High \u2192\n(Inverted WGI Political Stability, 2024)",
+    y = "NCS Potential Density (log\u2081\u2080 tCO\u2082e ha\u207b\u00b9 yr\u207b\u00b9)"
+  ) +
+  theme_bw(base_size = 11) +
+  guides(color = guide_legend(order = 1, override.aes = list(size = 3)),
+         size  = guide_legend(order = 2))
+
+panel_C
+
+# Save standalone
+ggsave(here("analysis/figures/fig2_implementation.png"),
+       panel_C, width = 10, height = 7, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig2_implementation.pdf"),
+       panel_C, width = 10, height = 7)
+cat("Saved: analysis/figures/fig2_implementation.png (.pdf)\n")
+```
+
+```{r quadrant-area-table}
+df_quad %>%
+  mutate(
+    area_mha      = adm0_ha / 1e6,
+    ncs_per_ha    = total_ncs_tco2e / adm0_ha,
+    total_per_mha = n_total / area_mha
+  ) %>%
+  group_by(quadrant) %>%
+  summarise(
+    n_countries        = n(),
+    mean_ncs_per_ha    = mean(ncs_per_ha,    na.rm = TRUE),
+    median_ncs_per_ha  = median(ncs_per_ha,  na.rm = TRUE),
+    mean_proj_per_mha  = mean(total_per_mha, na.rm = TRUE),
+    median_proj_per_mha = median(total_per_mha, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4))) %>%
+  knitr::kable(
+    col.names = c("Quadrant", "Countries",
+                  "Mean NCS (tCO\u2082e/ha)", "Median NCS (tCO\u2082e/ha)",
+                  "Mean projects/Mha", "Median projects/Mha"),
+    caption = "Area-normalised NCS potential and project density by quadrant"
+  ) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE
+  ) %>%
+  kableExtra::column_spec(1, bold = TRUE)
+```
+
+### 14.5 Threshold Analysis: 3×3 Risk × Potential Grid
+
+If political risk operates as a **threshold effect** rather than a linear
+gradient, we expect under-representation to concentrate in the highest-risk
+tier only — not spread evenly across the high-risk half. Splitting both axes
+into **tertiles** (low / medium / high) gives 9 cells and allows a direct test.
+
+Colour in each cell = standardised residual $(O - E) / \sqrt{E}$ from a
+chi-square test. Negative (red) = fewer projects than expected; positive
+(green) = more. The annotation shows observed % of countries with ≥1 project.
+
+```{r threshold-grid, fig.height=7, fig.width=9}
+# Tertile breaks for both axes
+df_grid <- df_quad %>%
+  mutate(
+    risk_tier = cut(risk,
+      breaks = quantile(risk, c(0, 1/3, 2/3, 1), na.rm = TRUE),
+      labels = c("Low Risk", "Medium Risk", "High Risk"),
+      include.lowest = TRUE
+    ),
+    ncs_tier = cut(log_ncs,
+      breaks = quantile(log_ncs, c(0, 1/3, 2/3, 1), na.rm = TRUE),
+      labels = c("Low Potential", "Medium Potential", "High Potential"),
+      include.lowest = TRUE
+    ),
+    has_project = n_total > 0
+  ) %>%
+  filter(!is.na(risk_tier), !is.na(ncs_tier))
+
+# 3×3 contingency: countries WITH projects per cell
+grid_tab <- df_grid %>%
+  group_by(risk_tier, ncs_tier) %>%
+  summarise(
+    n_countries    = n(),
+    n_with_project = sum(has_project),
+    pct            = round(mean(has_project) * 100, 1),
+    .groups = "drop"
+  )
+
+# Chi-square on the 9-cell table (expected proportional to cell size)
+total_with <- sum(grid_tab$n_with_project)
+total_n    <- sum(grid_tab$n_countries)
+grid_tab   <- grid_tab %>%
+  mutate(
+    expected = total_with * n_countries / total_n,
+    std_resid = (n_with_project - expected) / sqrt(expected)
+  )
+
+chi9 <- chisq.test(
+  matrix(grid_tab$n_with_project, nrow = 3,
+         dimnames = list(levels(df_grid$risk_tier),
+                         levels(df_grid$ncs_tier))),
+  p = matrix(grid_tab$n_countries / total_n, nrow = 3),
+  rescale.p = TRUE
+)
+
+cat(sprintf("3×3 chi-square: X²(%.0f) = %.2f, p = %.4f\n",
+            chi9$parameter, chi9$statistic, chi9$p.value))
+
+# Heatmap
+grid_tab %>%
+  mutate(
+    risk_tier = factor(risk_tier, levels = rev(c("Low Risk","Medium Risk","High Risk"))),
+    label     = sprintf("%d / %d\n(%g%%)", n_with_project, n_countries, pct)
+  ) %>%
+  ggplot(aes(x = ncs_tier, y = risk_tier, fill = std_resid)) +
+  geom_tile(color = "white", linewidth = 1.2) +
+  geom_text(aes(label = label), size = 3.8, lineheight = 0.95) +
+  scale_fill_gradient2(
+    low      = "#d73027", mid = "white", high = "#1a9850",
+    midpoint = 0, name = "Std.\nresidual",
+    limits   = c(-3, 3), oob = scales::squish
+  ) +
+  scale_x_discrete(position = "top") +
+  labs(
+    title    = "Project Presence Across 3×3 Risk × Potential Grid",
+    subtitle = sprintf(
+      "Colour = standardised residual (O\u2212E)/\u221aE  |  Chi-square p = %.3f",
+      chi9$p.value
+    ),
+    x = NULL, y = NULL,
+    caption  = paste("Tertile splits on both axes.",
+                     "Karnik et al. (2024); Equator Initiative (2024);",
+                     "Naturebase v3 (2025); WGI 2024")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(axis.text = element_text(face = "bold"),
+        panel.grid = element_blank())
+```
+
+```{r threshold-market-only, fig.height=7, fig.width=9}
+# Repeat for MARKET projects only (Karnik) to separate from community projects
+grid_mkt <- df_grid %>%
+  mutate(has_market = n_projects > 0) %>%
+  group_by(risk_tier, ncs_tier) %>%
+  summarise(
+    n_countries  = n(),
+    n_with_mkt   = sum(has_market),
+    pct          = round(mean(has_market) * 100, 1),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    expected  = sum(n_with_mkt) * n_countries / sum(n_countries),
+    std_resid = (n_with_mkt - expected) / sqrt(expected)
+  )
+
+chi_mkt <- chisq.test(
+  matrix(grid_mkt$n_with_mkt, nrow = 3),
+  p = matrix(grid_mkt$n_countries / sum(grid_mkt$n_countries), nrow = 3),
+  rescale.p = TRUE
+)
+cat(sprintf("Market-only chi-square: X²(%.0f) = %.2f, p = %.4f\n",
+            chi_mkt$parameter, chi_mkt$statistic, chi_mkt$p.value))
+```
+
+```{r mechanism-grids, fig.height=14, fig.width=14}
+# Helper: build a 3×3 residual grid for any binary outcome column
+make_grid <- function(data, outcome_col, label) {
+  data %>%
+    group_by(risk_tier, ncs_tier) %>%
+    summarise(
+      n_countries = n(),
+      n_with      = sum(.data[[outcome_col]]),
+      pct         = round(mean(.data[[outcome_col]]) * 100, 1),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      expected  = sum(n_with) * n_countries / sum(n_countries),
+      std_resid = (n_with - expected) / sqrt(pmax(expected, 0.001)),
+      mechanism = label,
+      tile_label = sprintf("%d/%d\n(%g%%)", n_with, n_countries, pct)
+    )
+}
+
+# Join sub-type project counts onto the grid df
+# (n_ad, n_ifm, n_arr already present via df_quad → df_grid)
+df_mech <- df_grid %>%
+  mutate(
+    across(c(n_ad, n_ifm, n_arr), ~ replace_na(., 0)),
+    has_project   = n_total     > 0,
+    has_market    = n_projects  > 0,
+    has_community = n_community > 0,
+    has_ad        = n_ad  > 0,
+    has_ifm       = n_ifm > 0,
+    has_arr       = n_arr > 0
+  )
+
+# Build one grid per mechanism
+grids <- bind_rows(
+  make_grid(df_mech, "has_project",   "All Projects\n(Market + Community)"),
+  make_grid(df_mech, "has_market",    "Market (All)\nKarnik 2024"),
+  make_grid(df_mech, "has_community", "Community\nEquator Initiative"),
+  make_grid(df_mech, "has_ad",        "Avoided\nDeforestation (AD)"),
+  make_grid(df_mech, "has_ifm",       "Improved Forest\nMgmt (IFM)"),
+  make_grid(df_mech, "has_arr",       "Afforestation /\nReforestation (ARR)")
+) %>%
+  mutate(
+    risk_tier = factor(risk_tier, levels = rev(c("Low Risk","Medium Risk","High Risk"))),
+    mechanism = factor(mechanism, levels = unique(mechanism))
+  )
+
+# Chi-square p-values per mechanism
+chi_pvals <- grids %>%
+  group_by(mechanism) %>%
+  summarise(
+    p = tryCatch({
+      chisq.test(n_with,
+                 p = n_countries / sum(n_countries),
+                 rescale.p = TRUE)$p.value
+    }, error = function(e) NA_real_),
+    .groups = "drop"
+  ) %>%
+  mutate(p_label = sprintf("p = %.3f", p))
+
+grids <- left_join(grids, chi_pvals, by = "mechanism") %>%
+  mutate(mechanism_label = paste0(as.character(mechanism), "\n", p_label))
+
+ggplot(grids, aes(x = ncs_tier, y = risk_tier, fill = std_resid)) +
+  geom_tile(color = "white", linewidth = 1.0) +
+  geom_text(aes(label = tile_label), size = 3.2, lineheight = 0.9) +
+  scale_fill_gradient2(
+    low = "#d73027", mid = "white", high = "#1a9850",
+    midpoint = 0, name = "Std.\nresidual",
+    limits = c(-3, 3), oob = scales::squish
+  ) +
+  scale_x_discrete(position = "top") +
+  facet_wrap(~ mechanism_label, ncol = 3) +
+  labs(
+    title   = "Project Presence by Mechanism: 3×3 Risk × Potential Grid",
+    subtitle = "Cell = countries with ≥1 project / total  |  Colour = (O−E)/√E",
+    x = NULL, y = NULL,
+    caption = "Karnik et al. (2024); Equator Initiative (2024); Naturebase v3 (2025); WGI 2024"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    axis.text      = element_text(face = "bold", size = 9),
+    strip.text     = element_text(face = "bold", size = 9),
+    panel.grid     = element_blank(),
+    legend.position = "right"
+  )
+
+ggsave(here("analysis/figures/fig6_mechanism_grids.png"),
+       last_plot(), width = 14, height = 10, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig6_mechanism_grids.pdf"),
+       last_plot(), width = 14, height = 10)
+cat("Saved: analysis/figures/fig6_mechanism_grids.png (.pdf)\n")
+```
+
+### 14.6 Political Risk × Project Implementation
+
+Direct scatter of political risk against project counts, both raw and
+area-normalised. These show whether high-risk countries implement fewer projects
+independent of their NCS potential.
+
+```{r risk-projects, fig.height=7, fig.width=14}
+df_rp <- df_quad %>%
+  mutate(
+    area_mha      = adm0_ha / 1e6,
+    total_per_mha = n_total / area_mha,
+    label_raw = if_else(
+      n_total > quantile(n_total, 0.90, na.rm = TRUE) |
+      (risk > 1 & n_total > 5),
+      adm0_name, NA_character_
+    ),
+    label_dens = if_else(
+      total_per_mha > quantile(total_per_mha, 0.90, na.rm = TRUE) |
+      (risk > 1 & total_per_mha > 0.5),
+      adm0_name, NA_character_
+    )
+  )
+
+# Shared aesthetics
+base_theme <- list(
+  scale_color_brewer(palette = "RdYlBu", name = "Income group",
+                     na.value = "grey60"),
+  theme_bw(base_size = 11),
+  labs(x = "Political Risk\n(Inverted WGI Political Stability, 2024)")
+)
+
+p_raw <- df_rp %>%
+  ggplot(aes(x = risk, y = log1p(n_total), color = income_level)) +
+  geom_point(alpha = 0.75, size = 2.2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black",
+              linewidth = 0.8, fill = "grey85") +
+  geom_text_repel(aes(label = label_raw), size = 2.4, max.overlaps = 15,
+                  segment.size = 0.3, segment.color = "grey55",
+                  box.padding = 0.35, show.legend = FALSE) +
+  base_theme +
+  labs(y = "Total Projects (log\u2081\u2070(n + 1))\nMarket + Community")
+
+p_dens <- df_rp %>%
+  ggplot(aes(x = risk, y = log1p(total_per_mha), color = income_level)) +
+  geom_point(alpha = 0.75, size = 2.2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black",
+              linewidth = 0.8, fill = "grey85") +
+  geom_text_repel(aes(label = label_dens), size = 2.4, max.overlaps = 15,
+                  segment.size = 0.3, segment.color = "grey55",
+                  box.padding = 0.35, show.legend = FALSE) +
+  base_theme +
+  labs(y = "Projects per Million ha (log\u2081\u2070(n + 1))\nMarket + Community")
+
+fig_rp <- (p_raw + p_dens) +
+  plot_annotation(
+    tag_levels = "A", tag_prefix = "(", tag_suffix = ")",
+    caption = "Karnik et al. (2024); Equator Initiative (2024); WGI 2024"
+  ) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
+fig_rp
+
+ggsave(here("analysis/figures/fig4_risk_x_projects.png"),
+       fig_rp, width = 14, height = 7, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig4_risk_x_projects.pdf"),
+       fig_rp, width = 14, height = 7)
+cat("Saved: analysis/figures/fig4_risk_x_projects.png (.pdf)\n")
+```
+
+### 14.7 Implementation Efficiency: Projects per NCS Potential
+
+**Projects per MtCO₂e of biophysical potential** — a direct measure of how
+much of the available carbon opportunity is being activated. A country with
+ten projects but 10 GtCO₂e of potential is implementing far less efficiently
+than one with ten projects and 100 MtCO₂e of potential.
+
+Two panels:
+- **(A)** Projects per MtCO₂e/yr vs. political risk
+- **(B)** Projects per (MtCO₂e/yr per Mha) — fully area-normalised efficiency
+
+```{r proj-per-potential, fig.height=7, fig.width=9}
+df_eff <- df_quad %>%
+  mutate(
+    ncs_MtCO2      = total_ncs_tco2e / 1e6,
+    proj_per_MtCO2 = n_total / pmax(ncs_MtCO2, 0.001),
+    log_eff        = log1p(proj_per_MtCO2)
+  ) %>%
+  filter(is.finite(proj_per_MtCO2))
+
+x_med <- mean(df_eff$risk,    na.rm = TRUE)
+y_med <- mean(df_eff$log_eff, na.rm = TRUE)
+
+quad_fills_eff <- c(
+  "Low Risk\nHigh Efficiency"  = "#d9f0d3",
+  "High Risk\nHigh Efficiency" = "#fddbc7",
+  "Low Risk\nLow Efficiency"   = "#f7f7f7",
+  "High Risk\nLow Efficiency"  = "#e8d5e8"
+)
+
+df_eff <- df_eff %>%
+  mutate(
+    quadrant_eff = case_when(
+      risk <  x_med & log_eff >= y_med ~ "Low Risk\nHigh Efficiency",
+      risk >= x_med & log_eff >= y_med ~ "High Risk\nHigh Efficiency",
+      risk <  x_med & log_eff <  y_med ~ "Low Risk\nLow Efficiency",
+      risk >= x_med & log_eff <  y_med ~ "High Risk\nLow Efficiency"
+    ),
+    label = if_else(
+      proj_per_MtCO2 > quantile(proj_per_MtCO2, 0.90, na.rm = TRUE) |
+      (n_total == 0 & ncs_MtCO2 > quantile(ncs_MtCO2, 0.80, na.rm = TRUE)),
+      adm0_name, NA_character_
+    )
+  )
+
+quad_text_eff <- tibble(
+  risk    = c(-2.1,  1.4, -2.1,  1.4),
+  log_eff = c(y_med + 0.8, y_med + 0.8,
+              y_med - 0.5, y_med - 0.5),
+  label   = c("Low Risk\nHigh Efficiency",
+              "High Risk\nHigh Efficiency",
+              "Low Risk\nLow Efficiency",
+              "High Risk\nLow Efficiency"),
+  hjust   = c(0, 1, 0, 1)
+)
+
+fig_eff <- df_eff %>%
+  ggplot(aes(x = risk, y = log_eff)) +
+  annotate("rect", xmin = -Inf, xmax = x_med,
+           ymin = y_med, ymax = Inf,   fill = quad_fills_eff[1], alpha = 0.55) +
+  annotate("rect", xmin = x_med, xmax = Inf,
+           ymin = y_med, ymax = Inf,   fill = quad_fills_eff[2], alpha = 0.55) +
+  annotate("rect", xmin = -Inf, xmax = x_med,
+           ymin = -Inf,  ymax = y_med, fill = quad_fills_eff[3], alpha = 0.55) +
+  annotate("rect", xmin = x_med, xmax = Inf,
+           ymin = -Inf,  ymax = y_med, fill = quad_fills_eff[4], alpha = 0.55) +
+  geom_vline(xintercept = x_med, linewidth = 0.5, linetype = "dashed",
+             color = "grey40") +
+  geom_hline(yintercept = y_med, linewidth = 0.5, linetype = "dashed",
+             color = "grey40") +
+  geom_point(aes(fill = quadrant_eff), shape = 21, size = 2.4,
+             alpha = 0.85, color = "white", stroke = 0.3) +
+  geom_text_repel(aes(label = label), size = 2.4, max.overlaps = 15,
+                  segment.size = 0.3, segment.color = "grey55",
+                  box.padding = 0.35, show.legend = FALSE) +
+  geom_text(data = quad_text_eff,
+            aes(label = label, hjust = hjust),
+            vjust = 0.5, size = 2.7, color = "grey30",
+            lineheight = 0.9, fontface = "italic") +
+  scale_fill_manual(values = quad_fills_eff, name = NULL,
+                    guide = guide_legend(nrow = 2)) +
+  labs(
+    x       = "Political Risk  \u2190 Low         High \u2192\n(Inverted WGI Political Stability, 2024)",
+    y       = "Implementation Efficiency\nlog\u2081\u2080(Projects per MtCO\u2082e yr\u207b\u00b9 + 1)",
+    caption = "Karnik et al. (2024); Equator Initiative (2024); Naturebase v3 (2025); WGI 2024"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(legend.position = "bottom")
+
+fig_eff
+
+ggsave(here("analysis/figures/fig5_efficiency.png"),
+       fig_eff, width = 9, height = 7, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig5_efficiency.pdf"),
+       fig_eff, width = 9, height = 7)
+cat("Saved: analysis/figures/fig5_efficiency.png (.pdf)\n")
+```
+
+---
+
+## 15. Risk Threshold × NbS Type: Cumulative Potential
+
+As investors or policymakers lower their political risk tolerance, how much NbS
+potential becomes inaccessible — and does this vary by ecosystem type?
+
+We sort all countries from **most stable to most risky** (high → low PV.EST) and
+trace how cumulative NbS potential grows as the acceptable risk threshold is
+relaxed. The y-axis shows cumulative potential as a **share of the global total**
+for each NbS type, so the four curves reach 100% at the same point (all countries
+included) but at different rates — revealing which NbS types are most
+disproportionately located in high-risk countries.
+
+```{r risk-threshold, fig.height=6, fig.width=9}
+# ── Helper: build a cumulative % curve for a named set of columns ─────────────
+make_cumulative <- function(col_map) {
+  df %>%
+    filter(!is.na(PV.EST)) %>%
+    select(iso3c, PV.EST, all_of(names(col_map))) %>%
+    arrange(desc(PV.EST)) %>%
+    mutate(across(all_of(names(col_map)), ~ replace_na(., 0))) %>%
+    mutate(across(all_of(names(col_map)),
+                  ~ cumsum(.) / sum(.) * 100,
+                  .names = "pct_{.col}")) %>%
+    pivot_longer(starts_with("pct_"),
+                 names_to = "type", values_to = "pct_cumulative") %>%
+    mutate(type = col_map[sub("^pct_", "", type)])
+}
+
+biome_cols <- c(
+  total_crop_tco2e   = "Cropland",
+  total_forest_tco2e = "Forest",
+  total_grass_tco2e  = "Grassland",
+  total_wet_tco2e    = "Wetland"
+)
+
+activity_cols <- c(
+  total_protect_tco2e = "Protection",
+  total_manage_tco2e  = "Management",
+  total_restore_tco2e = "Restoration"
+)
+
+df_biome    <- make_cumulative(biome_cols) %>%
+  mutate(type = factor(type, levels = c("Forest","Grassland","Cropland","Wetland")))
+df_activity <- make_cumulative(activity_cols) %>%
+  mutate(type = factor(type, levels = c("Protection","Management","Restoration")))
+
+# ── Shared plot helper ────────────────────────────────────────────────────────
+risk_zone_layers <- list(
+  annotate("rect", xmin=-Inf, xmax=-1, ymin=0, ymax=100,
+           fill="#fee0d2", alpha=0.35),
+  annotate("rect", xmin=-1,   xmax=0,  ymin=0, ymax=100,
+           fill="#fff7bc", alpha=0.35),
+  annotate("rect", xmin=0,    xmax=1,  ymin=0, ymax=100,
+           fill="#e5f5e0", alpha=0.25),
+  annotate("rect", xmin=1,    xmax=Inf,ymin=0, ymax=100,
+           fill="#a1d99b", alpha=0.25),
+  geom_vline(xintercept=c(-1,0,1), linewidth=0.5,
+             linetype="dashed", color="grey40"),
+  annotate("text", x=c(-1.85,-0.5,0.5,1.85), y=97,
+           label=c("Fragile","High Risk","Moderate","Stable"),
+           size=2.9, color="grey35", fontface="italic"),
+  scale_x_reverse(
+    name   = "\u2190 Less Risky          More Risky \u2192\nPolitical Stability (WGI 2024, threshold)",
+    breaks = seq(-3, 2, 1)
+  ),
+  scale_y_continuous(
+    name   = "Cumulative NbS Potential (% of type total)",
+    limits = c(0, 100),
+    labels = scales::label_percent(scale = 1)
+  ),
+  theme_bw(base_size = 11),
+  theme(legend.position = "right")
+)
+
+p_biome <- ggplot(df_biome,
+                  aes(x = PV.EST, y = pct_cumulative, color = type)) +
+  risk_zone_layers +
+  # Activity types as grey lines (background layer)
+  geom_line(data = df_activity,
+            aes(x = PV.EST, y = pct_cumulative, linetype = type),
+            color = "grey55", linewidth = 1.0, inherit.aes = FALSE) +
+  # Biome types as coloured lines (foreground)
+  geom_line(linewidth = 1.1) +
+  scale_color_manual(
+    values = c("Forest"    = "#1b7837", "Grassland" = "#78c679",
+               "Cropland"  = "#d95f02", "Wetland"   = "#2166ac"),
+    name = "Biome"
+  ) +
+  scale_linetype_manual(
+    values = c("Protection"  = "solid",
+               "Management"  = "longdash",
+               "Restoration" = "dotted"),
+    name = "Activity type"
+  ) +
+  guides(
+    color    = guide_legend(order = 1, override.aes = list(linewidth = 1.1)),
+    linetype = guide_legend(order = 2,
+                            keywidth = unit(2, "cm"),
+                            override.aes = list(color = "grey55", linewidth = 1.0))
+  )
+
+p_biome
+```
+
+```{r risk-threshold-save}
+ggsave(here("analysis/figures/fig_threshold_nbs_type.png"),
+       last_plot(), width = 9, height = 6, dpi = 300, bg = "white")
+ggsave(here("analysis/figures/fig_threshold_nbs_type.pdf"),
+       last_plot(), width = 9, height = 6)
+cat("Saved: analysis/figures/fig_threshold_nbs_type.png (.pdf)\n")
+```
+
+---
+
+## 16. Export Merged Dataset
 
 ```{r export}
 export_cols <- c(
   "iso3c", "adm0_name", "adm0_ha",
   nbs_biome, nbs_activity, nbs_grand,
   wgi_vars, "income_level", "region",
-  "n_projects", "n_ad", "n_ifm", "n_arr"
+  "n_projects", "n_ad", "n_ifm", "n_arr",
+  "n_community", "n_total", "risk", "quadrant"
 )
 
-df_export <- df_k %>%
+df_export <- df_quad %>%
   select(any_of(export_cols))
 
 write_csv(df_export, here("data/nbs_wgi_merged.csv"))

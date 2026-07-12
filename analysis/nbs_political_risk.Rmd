@@ -1,0 +1,828 @@
+---
+title: "Nature-based Solutions and Political Risk: A Cross-Country Analysis"
+author: ""
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: hide
+    fig_width: 10
+    fig_height: 7
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+# Set working directory to project root (one level above analysis/)
+knitr::opts_knit$set(root.dir = normalizePath(file.path(knitr::current_input(dir = TRUE), "..")))
+```
+
+## Overview
+
+This document examines how country-level **total Nature-based Solutions (NbS)
+mitigation potential** correlates with **World Governance Indicators (WGI)** and
+whether political risk shapes **market-based NbS implementation**. Three datasets
+are integrated:
+
+1. **Naturebase v3** (2025) — biophysical NbS potential in tCO₂e/yr for 20
+   pathways across 216 countries (`total_ncs_tco2e`)
+2. **World Bank WGI 2024** — six governance dimensions across 216 countries
+3. **Karnik et al. 2024** (*Zenodo* doi:10.5281/zenodo.11459391) — 575
+   market-based carbon offset projects (AD, IFM, ARR) in 55 countries
+
+**Political risk dimensions (WGI):**
+
+| Code      | Dimension                                      |
+|-----------|------------------------------------------------|
+| CC.EST    | Control of Corruption                          |
+| GE.EST    | Government Effectiveness                       |
+| PV.EST    | Political Stability & Absence of Violence      |
+| RL.EST    | Rule of Law                                    |
+| RQ.EST    | Regulatory Quality                             |
+| VA.EST    | Voice & Accountability                         |
+
+> **Additional source — Fragile States Index (FSI):** Download the latest annual
+> CSV from <https://fragilestatesindex.org/> and place it in
+> `data/fsi/fsi_latest.csv` to activate Section 8. The FSI provides 12
+> sub-indicators (Security Apparatus, State Legitimacy, Factionalized Elites,
+> etc.) that complement the broader WGI governance dimensions.
+
+---
+
+## 1. Package Setup
+
+```{r packages}
+# Install any missing packages before running:
+# install.packages(c("tidyverse", "readxl", "ggcorrplot", "ggrepel",
+#                    "countrycode", "patchwork", "broom", "scales", "here"))
+
+library(tidyverse)
+library(readxl)         # Read local WGI Excel files
+library(ggcorrplot)     # Correlation heatmaps
+library(ggrepel)        # Non-overlapping labels on scatter plots
+library(countrycode)    # Country code harmonisation
+library(patchwork)      # Combine ggplots
+library(broom)          # Tidy model output
+library(scales)
+library(here)
+```
+
+---
+
+## 2. Load Naturebase Data
+
+```{r load-nbs}
+nbs_raw <- read_csv(here("data/all_pathways/all_pathways_tco2e_adm0.csv"))
+
+# ── Pathway display labels ─────────────────────────────────────────────────────
+pathway_labels <- c(
+  # Individual pathways
+  crp_cba_tco2e  = "Cropland Agroforestry",
+  crp_rec_tco2e  = "Reduced Emissions (Crops)",
+  crp_scc_tco2e  = "Soil Carbon (Crops)",
+  for_afc_tco2e  = "Avoided Forest Conversion",
+  for_csf_tco2e  = "Climate-Smart Forestry",
+  for_ref_tco2e  = "Forest Reforestation",
+  for_rwf_tco2e  = "Reduced Woodland Fire (Forest)",
+  grs_agc_tco2e  = "Agroforestry (Grassland)",
+  grs_asc_tco2e  = "Avoided Savanna Conversion",
+  grs_grr_tco2e  = "Grassland Restoration",
+  grs_reg_tco2e  = "Reforestation (Grassland)",
+  grs_rwf_tco2e  = "Reduced Grassland Fire",
+  grs_sba_tco2e  = "Savanna Burning Management",
+  grs_scg_tco2e  = "Soil Carbon (Grassland)",
+  grs_sfm_tco2e  = "Sustainable Forest Mgmt",
+  wet_apc_tco2e  = "Avoided Peatland Conversion",
+  wet_awc_tco2e  = "Avoided Wetland Conversion",
+  wet_cwr_tco2e  = "Coastal Wetland Restoration",
+  wet_ipm_tco2e  = "Improved Peatland Mgmt",
+  wet_per_tco2e  = "Peatland Restoration",
+  # Biome aggregates
+  total_crop_tco2e    = "Total: Cropland",
+  total_forest_tco2e  = "Total: Forest",
+  total_grass_tco2e   = "Total: Grassland",
+  total_wet_tco2e     = "Total: Wetland",
+  total_peat_tco2e    = "Total: Peatland",
+  # Activity-type aggregates
+  total_protect_tco2e = "Total: Protection",
+  total_manage_tco2e  = "Total: Management",
+  total_restore_tco2e = "Total: Restoration",
+  total_ncs_tco2e     = "Total NCS"
+)
+
+nbs_individual <- names(pathway_labels)[1:20]
+nbs_biome      <- names(pathway_labels)[21:25]
+nbs_activity   <- names(pathway_labels)[26:29]
+nbs_grand      <- "total_ncs_tco2e"
+
+cat("Countries in Naturebase:", nrow(nbs_raw), "\n")
+glimpse(nbs_raw)
+```
+
+---
+
+## 3. Load World Governance Indicators (Local Excel)
+
+Data are read from the locally downloaded WGI 2025 dataset
+(`data/wgidataset_with_sourcedata-2025.xlsx`). The most recent year (2024)
+is used for each country.
+
+```{r load-wgi}
+# Short alias → display label (used for plot titles, table headers)
+wgi_codes <- c(
+  CC.EST = "Control of Corruption",
+  GE.EST = "Government Effectiveness",
+  PV.EST = "Political Stability & No Violence",
+  RL.EST = "Rule of Law",
+  RQ.EST = "Regulatory Quality",
+  VA.EST = "Voice & Accountability"
+)
+
+# Sheet name in the Excel file for each dimension
+wgi_sheet_map <- c(
+  CC.EST = "cc",
+  GE.EST = "ge",
+  PV.EST = "pv",
+  RL.EST = "rl",
+  RQ.EST = "rq",
+  VA.EST = "va"
+)
+
+wgi_excel_path <- here("data", "wgidataset_with_sourcedata-2025.xlsx")
+
+# Read each sheet and extract the governance estimate for the most recent year
+read_wgi_sheet <- function(dim_code) {
+  read_excel(wgi_excel_path, sheet = wgi_sheet_map[dim_code]) %>%
+    rename(
+      wb_code      = `Economy (code)`,
+      country      = `Economy (name)`,
+      region       = Region,
+      income_level = `Income classification`,
+      year         = Year,
+      estimate     = `Governance estimate (approx. -2.5 to +2.5)`
+    ) %>%
+    select(wb_code, country, region, income_level, year, estimate) %>%
+    filter(!is.na(estimate)) %>%
+    group_by(wb_code) %>%
+    slice_max(year, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    rename(!!dim_code := estimate)
+}
+
+wgi_sheets <- lapply(names(wgi_sheet_map), read_wgi_sheet)
+
+# Wide format: one row per country, one column per WGI dimension
+wgi_wide <- wgi_sheets[[1]] %>%
+  select(wb_code, country, region, income_level, CC.EST)
+for (i in 2:length(wgi_sheets)) {
+  dim_col <- names(wgi_sheet_map)[i]
+  wgi_wide <- left_join(
+    wgi_wide,
+    wgi_sheets[[i]] %>% select(wb_code, !!sym(dim_col)),
+    by = "wb_code"
+  )
+}
+
+# Convert World Bank country codes → ISO3
+# countrycode handles most; manual overrides for legacy WB codes
+wgi <- wgi_wide %>%
+  mutate(
+    iso3c = countrycode(wb_code, origin = "wb", destination = "iso3c",
+                        warn = FALSE),
+    iso3c = case_when(
+      wb_code == "ADO" ~ "AND",   # Andorra
+      wb_code == "ZAR" ~ "COD",   # DR Congo
+      wb_code == "ROM" ~ "ROU",   # Romania
+      wb_code == "TMP" ~ "TLS",   # Timor-Leste
+      wb_code == "PSE" ~ "PSE",   # Palestine
+      !is.na(iso3c)   ~ iso3c,
+      TRUE             ~ wb_code
+    ),
+    income_level = factor(income_level,
+      levels = c("Low income", "Lower middle income",
+                 "Upper middle income", "High income"))
+  )
+
+cat("WGI records loaded:", nrow(wgi), "\n")
+```
+
+---
+
+## 4. Merge NbS + Governance Data
+
+```{r merge}
+df <- nbs_raw %>%
+  rename(iso3c = adm0_id) %>%
+  left_join(wgi, by = "iso3c") %>%
+  filter(!is.na(CC.EST))  # require at least one WGI estimate
+
+cat("Countries matched:", nrow(df), "\n")
+cat("Countries without WGI (dropped):", nrow(nbs_raw) - nrow(df), "\n")
+
+# Compute per-hectare NCS density for size-normalised comparisons
+df <- df %>%
+  mutate(
+    across(
+      all_of(c(nbs_individual, nbs_biome, nbs_activity, nbs_grand)),
+      ~ . / adm0_ha,
+      .names = "{.col}_dens"   # tCO2e / ha_country / yr
+    )
+  )
+```
+
+---
+
+## 5. Descriptive Statistics
+
+```{r descriptives}
+desc <- df %>%
+  select(total_ncs_tco2e, all_of(names(wgi_codes))) %>%
+  pivot_longer(everything()) %>%
+  group_by(name) %>%
+  summarise(
+    n      = sum(!is.na(value)),
+    mean   = mean(value, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    sd     = sd(value, na.rm = TRUE),
+    min    = min(value, na.rm = TRUE),
+    max    = max(value, na.rm = TRUE)
+  ) %>%
+  mutate(
+    label = coalesce(pathway_labels[name], wgi_codes[name], name)
+  ) %>%
+  relocate(label, .after = name)
+
+knitr::kable(desc, digits = 2,
+  caption = "Descriptive statistics — Total NCS potential (tCO₂e/yr) and WGI scores")
+```
+
+---
+
+## 6. Total NCS × WGI Spearman Correlations
+
+Spearman rank correlations between **log1p(Total NCS tCO₂e/yr)** and each
+WGI governance dimension. p-values are from a two-sided test with a
+continuity correction.
+
+```{r cor-total-ncs}
+wgi_vars <- names(wgi_codes)
+
+# Compute Spearman rho + p-value for each WGI dim vs total NCS
+cor_ncs <- map_dfr(wgi_vars, function(wv) {
+  tmp <- df %>%
+    filter(!is.na(total_ncs_tco2e), total_ncs_tco2e > 0, !is.na(.data[[wv]])) %>%
+    mutate(log_ncs = log1p(total_ncs_tco2e))
+  ct  <- cor.test(tmp$log_ncs, tmp[[wv]], method = "spearman", exact = FALSE)
+  tibble(
+    wgi_var   = wv,
+    wgi_label = wgi_codes[wv],
+    rho       = ct$estimate,
+    p_value   = ct$p.value,
+    n         = nrow(tmp),
+    sig       = case_when(
+      p_value < 0.001 ~ "***",
+      p_value < 0.01  ~ "**",
+      p_value < 0.05  ~ "*",
+      TRUE            ~ ""
+    )
+  )
+})
+
+cor_ncs %>%
+  select(wgi_label, rho, p_value, n, sig) %>%
+  mutate(across(c(rho, p_value), ~ round(.x, 4))) %>%
+  knitr::kable(
+    col.names = c("WGI Dimension", "Spearman ρ", "p-value", "N", "Sig."),
+    caption   = "Spearman correlations: log1p(Total NCS tCO₂e/yr) × WGI (2024)"
+  )
+```
+
+```{r cor-bar, fig.height=4, fig.width=7}
+cor_ncs %>%
+  ggplot(aes(x = rho, y = reorder(wgi_label, rho),
+             fill = rho > 0)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  geom_text(aes(label = paste0(round(rho, 3), sig),
+                x     = rho + ifelse(rho >= 0, 0.01, -0.01)),
+            hjust = ifelse(cor_ncs$rho >= 0, 0, 1), size = 3.8) +
+  geom_vline(xintercept = 0, linewidth = 0.5) +
+  scale_fill_manual(values = c("TRUE" = "#1a9850", "FALSE" = "#d73027")) +
+  scale_x_continuous(limits = c(-0.4, 0.6), expand = expansion(mult = 0.02)) +
+  labs(
+    title    = "Spearman ρ: Total NCS Potential × WGI Governance Dimensions",
+    subtitle = "* p<0.05  ** p<0.01  *** p<0.001  |  log1p(tCO₂e/yr), N≈200 countries",
+    x = "Spearman ρ", y = NULL
+  )
+```
+
+---
+
+## 7. Scatter Plots: Total NCS vs. Each WGI Dimension
+
+Each panel shows **log₁₀(Total NCS tCO₂e/yr)** against one WGI dimension.
+Countries in the top 10% of NCS potential or bottom 10% of governance are
+labelled. The OLS trend line (with 95% CI) is shown in black.
+
+```{r scatter-all-wgi, fig.height=9, fig.width=11}
+label_thresh <- quantile(df$total_ncs_tco2e, 0.90, na.rm = TRUE)
+
+make_scatter <- function(wv) {
+  risk_thresh <- quantile(df[[wv]], 0.10, na.rm = TRUE)
+  df %>%
+    filter(!is.na(.data[[wv]]), total_ncs_tco2e > 0) %>%
+    mutate(
+      log_ncs = log10(total_ncs_tco2e),
+      label   = if_else(
+        total_ncs_tco2e > label_thresh | .data[[wv]] < risk_thresh,
+        adm0_name, NA_character_
+      )
+    ) %>%
+    ggplot(aes(x = .data[[wv]], y = log_ncs)) +
+    geom_point(aes(color = income_level), alpha = 0.70, size = 1.9) +
+    geom_smooth(method = "lm", se = TRUE, color = "black",
+                linewidth = 0.7, fill = "grey80") +
+    geom_text_repel(aes(label = label), size = 2.4, max.overlaps = 12,
+                    segment.color = "grey55", segment.size = 0.3) +
+    scale_color_brewer(palette = "RdYlBu", name = NULL, na.value = "grey70",
+                       guide = guide_legend(nrow = 2)) +
+    labs(
+      x     = wgi_codes[wv],
+      y     = "log₁₀(Total NCS tCO₂e/yr)",
+      title = wgi_codes[wv]
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(legend.position = "bottom",
+          legend.text     = element_text(size = 7),
+          plot.title      = element_text(face = "bold", size = 10))
+}
+
+plots <- map(wgi_vars, make_scatter)
+
+wrap_plots(plots, ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom")
+```
+
+---
+
+## 8. Fragile States Index (Optional)
+
+Place the annual FSI CSV (`fsi_latest.csv`) in `data/fsi/` to run this section.
+Expected columns: `Country`, `Total`, plus 12 sub-indicator columns
+(C1–C3, S1–S2, E1–E3, P1–P3, X1, and/or their full names).
+
+```{r fsi, eval=file.exists(here("data/fsi/fsi_latest.csv"))}
+fsi_raw <- read_csv(here("data/fsi/fsi_latest.csv"))
+
+# Harmonise country names → ISO3 via countrycode
+fsi <- fsi_raw %>%
+  mutate(
+    iso3c = countrycode(Country, origin = "country.name", destination = "iso3c",
+                        warn = FALSE)
+  ) %>%
+  filter(!is.na(iso3c)) %>%
+  rename(fsi_total = Total) %>%
+  select(iso3c, fsi_total, any_of(c(
+    "C1: Security Apparatus", "C2: Factionalized Elites", "C3: Group Grievance",
+    "E1: Economy", "E2: Economic Inequality", "E3: Human Flight and Brain Drain",
+    "P1: State Legitimacy", "P2: Public Services", "P3: Human Rights",
+    "S1: Demographic Pressures", "S2: Refugees and IDPs", "X1: External Intervention"
+  )))
+
+df_fsi <- df %>%
+  left_join(fsi, by = "iso3c")
+
+fsi_vars <- names(fsi)[-1]
+
+cor_fsi_mat <- df_fsi %>%
+  select(all_of(c(nbs_biome, nbs_grand, fsi_vars))) %>%
+  mutate(across(all_of(c(nbs_biome, nbs_grand)), log1p)) %>%
+  cor(method = "spearman", use = "pairwise.complete.obs")
+
+cor_fsi_sub <- cor_fsi_mat[c(nbs_biome, nbs_grand), fsi_vars]
+rownames(cor_fsi_sub) <- pathway_labels[rownames(cor_fsi_sub)]
+
+knitr::kable(round(cor_fsi_sub, 3),
+             caption = "Spearman rho — NbS biome totals × FSI sub-indicators")
+```
+
+---
+
+## 9. Detailed Scatter: Total NCS vs. Political Stability
+
+High-resolution view of the strongest governance relationship, with all
+countries labelled by income group and region.
+
+```{r scatter-ps-detail, fig.height=7, fig.width=10}
+df %>%
+  filter(!is.na(PV.EST), total_ncs_tco2e > 0) %>%
+  mutate(
+    log_ncs = log10(total_ncs_tco2e),
+    label   = if_else(
+      total_ncs_tco2e > quantile(total_ncs_tco2e, 0.85, na.rm = TRUE) |
+      PV.EST < quantile(PV.EST, 0.10, na.rm = TRUE),
+      adm0_name, NA_character_
+    )
+  ) %>%
+  ggplot(aes(x = PV.EST, y = log_ncs)) +
+  geom_point(aes(color = income_level, shape = region), alpha = 0.80, size = 2.8) +
+  geom_smooth(method = "lm", se = TRUE, color = "black",
+              linewidth = 0.9, fill = "grey85") +
+  geom_text_repel(
+    aes(label = label), size = 2.8, max.overlaps = 25,
+    segment.color = "grey55", segment.size = 0.3,
+    box.padding = 0.4
+  ) +
+  scale_color_brewer(palette = "RdYlBu", name = "Income Group",
+                     na.value = "grey60") +
+  scale_shape_manual(
+    name   = "Region",
+    values = setNames(c(16, 17, 15, 18, 8, 4, 3),
+                      na.omit(unique(df$region)))
+  ) +
+  labs(
+    x       = "Political Stability & Absence of Violence (WGI 2024, −2.5 to +2.5)",
+    y       = "Total NCS Potential (log₁₀ tCO₂e/yr)",
+    title   = "Total NCS Potential vs. Political Stability",
+    caption = "Naturebase v3 (2025); World Governance Indicators 2024"
+  ) +
+  theme_minimal(base_size = 12) +
+  guides(shape = guide_legend(ncol = 1))
+```
+
+---
+
+## 10. Sub-group Analysis by Income Group
+
+Stratified Spearman correlations between Total NCS and each WGI dimension,
+computed separately for each World Bank income group.
+
+```{r subgroup-income-cor}
+income_cors <- df %>%
+  filter(!is.na(income_level)) %>%
+  group_by(income_level) %>%
+  summarise(
+    n = n(),
+    across(
+      all_of(wgi_vars),
+      ~ cor(log1p(total_ncs_tco2e), .x,
+            method = "spearman", use = "complete.obs"),
+      .names = "{.col}"
+    )
+  ) %>%
+  pivot_longer(all_of(wgi_vars), names_to = "wgi_var", values_to = "rho") %>%
+  mutate(wgi_label = wgi_codes[wgi_var])
+
+ggplot(income_cors,
+       aes(x = rho, y = reorder(income_level, rho, FUN = mean),
+           color = wgi_label)) +
+  geom_point(size = 3.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  scale_color_brewer(palette = "Dark2", name = "WGI Dimension") +
+  labs(
+    x     = "Spearman rho (log1p Total NCS ~ WGI)",
+    y     = NULL,
+    title = "NCS–Governance Correlations by Income Group"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+```{r subgroup-income-facet, fig.height=8, fig.width=11}
+df %>%
+  filter(!is.na(income_level), total_ncs_tco2e > 0) %>%
+  pivot_longer(cols = all_of(wgi_vars),
+               names_to = "wgi_var", values_to = "wgi_val") %>%
+  mutate(wgi_label = wgi_codes[wgi_var]) %>%
+  ggplot(aes(x = wgi_val, y = log1p(total_ncs_tco2e), color = income_level)) +
+  geom_point(alpha = 0.4, size = 1.2) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.9) +
+  facet_grid(income_level ~ wgi_label,
+             labeller = labeller(wgi_label = label_wrap_gen(12))) +
+  scale_color_brewer(palette = "RdYlBu") +
+  labs(
+    x     = "WGI Score",
+    y     = "Total NCS (log1p tCO₂e/yr)",
+    title = "Total NCS ~ WGI, stratified by income group"
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(legend.position = "none",
+        strip.text = element_text(size = 7))
+```
+
+---
+
+## 11. Sub-group Analysis by World Bank Region
+
+```{r subgroup-region, fig.height=6, fig.width=12}
+region_cors <- df %>%
+  filter(!is.na(region)) %>%
+  group_by(region) %>%
+  summarise(
+    n = n(),
+    across(
+      all_of(wgi_vars),
+      ~ cor(log1p(total_ncs_tco2e), .x,
+            method = "spearman", use = "complete.obs"),
+      .names = "{.col}"
+    )
+  ) %>%
+  pivot_longer(all_of(wgi_vars), names_to = "wgi_var", values_to = "rho") %>%
+  mutate(wgi_label = wgi_codes[wgi_var])
+
+ggplot(region_cors,
+       aes(x = rho, y = reorder(region, rho, FUN = mean),
+           fill = wgi_label)) +
+  geom_col(position = position_dodge(0.85), width = 0.8) +
+  geom_vline(xintercept = 0, linewidth = 0.5) +
+  scale_fill_brewer(palette = "Set2", name = "WGI Dimension") +
+  labs(
+    x     = "Spearman rho (log1p Total NCS ~ WGI)",
+    y     = NULL,
+    title = "Regional Variation in NCS–Governance Correlations"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+---
+
+## 12. OLS Regression: Total NCS ~ All WGI Dimensions
+
+A single OLS model regresses log1p Total NCS on all six WGI dimensions
+simultaneously. This estimates the partial association of each governance
+dimension conditional on the others.
+
+```{r ols-regression, fig.height=5, fig.width=8}
+ols <- lm(
+  log1p(total_ncs_tco2e) ~
+    CC.EST + GE.EST + PV.EST + RL.EST + RQ.EST + VA.EST,
+  data = df
+)
+
+summary(ols)
+
+tidy(ols, conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(term = wgi_codes[term]) %>%
+  ggplot(aes(x = estimate,
+             xmin = conf.low, xmax = conf.high,
+             y = reorder(term, estimate))) +
+  geom_pointrange(size = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x        = "OLS Coefficient (95% CI)",
+    y        = NULL,
+    title    = "OLS: log1p(Total NCS) ~ WGI",
+    subtitle = paste0("Adj. R² = ",
+                      round(summary(ols)$adj.r.squared, 3),
+                      " | N = ", nobs(ols))
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+### Per-biome regressions
+
+```{r ols-per-biome}
+biome_models <- map(
+  set_names(c(nbs_biome, nbs_grand)),
+  ~ lm(
+      reformulate(wgi_vars, response = paste0("log1p(", .x, ")")),
+      data = df
+    ) %>%
+    tidy(conf.int = TRUE) %>%
+    filter(term != "(Intercept)") %>%
+    mutate(
+      outcome   = pathway_labels[.x],
+      wgi_label = wgi_codes[term]
+    )
+) %>%
+  bind_rows()
+
+ggplot(biome_models,
+       aes(x = estimate, xmin = conf.low, xmax = conf.high,
+           y = reorder(wgi_label, estimate),
+           color = outcome)) +
+  geom_pointrange(position = position_dodge(0.7), size = 0.55) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  scale_color_brewer(palette = "Set1", name = "NbS Outcome") +
+  facet_wrap(~outcome, nrow = 2) +
+  labs(
+    x     = "OLS Coefficient (95% CI)",
+    y     = NULL,
+    title = "Per-biome OLS: log1p(NbS potential) ~ WGI"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 8))
+```
+
+---
+
+## 13. Market-based NbS: Karnik et al. (2024) Carbon Offset Projects
+
+A global database of **575 nature-based carbon offset project boundaries** across
+55 countries (Karnik et al., 2024, *Zenodo* doi:10.5281/zenodo.11459391).
+Projects span three types: Avoided Deforestation (AD), Improved Forest Management
+(IFM), and Afforestation / Reforestation / Revegetation (ARR). This represents
+**market-based, implemented** NbS activity — a complement to Naturebase's
+biophysical potential estimates.
+
+```{r load-karnik}
+karnik_raw <- read_csv(here("data/karnik2024/carbon_projects_database_index.csv"),
+                       show_col_types = FALSE)
+
+# Aggregate to country level
+karnik_cty <- karnik_raw %>%
+  mutate(
+    iso3c = countrycode(`Country`, origin = "country.name",
+                        destination = "iso3c", warn = FALSE)
+  ) %>%
+  filter(!is.na(iso3c)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    n_projects = n(),
+    n_ad       = sum(`Project Type` == "AD",  na.rm = TRUE),
+    n_ifm      = sum(`Project Type` == "IFM", na.rm = TRUE),
+    n_arr      = sum(`Project Type` == "ARR", na.rm = TRUE),
+    n_verra    = sum(`Registry Name` == "Verra", na.rm = TRUE),
+    .groups = "drop"
+  )
+
+cat(sprintf("Karnik: %d countries with ≥1 project | %d projects total\n",
+            nrow(karnik_cty), sum(karnik_cty$n_projects)))
+```
+
+### 13.1 Project Count by Country
+
+```{r karnik-bar, fig.height=6}
+karnik_cty %>%
+  left_join(select(df, iso3c, country_name = adm0_name, region), by = "iso3c") %>%
+  arrange(desc(n_projects)) %>%
+  slice_head(n = 25) %>%
+  ggplot(aes(x = n_projects, y = reorder(country_name, n_projects),
+             fill = region)) +
+  geom_col(width = 0.75) +
+  geom_text(aes(label = n_projects), hjust = -0.2, size = 3) +
+  scale_fill_brewer(palette = "Set1", na.value = "grey70") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "Top 25 Countries by Carbon Offset Project Count",
+       subtitle = "Karnik et al. 2024 — 575 NbS projects across 55 countries",
+       x = "Number of Projects", y = NULL, fill = "Region")
+```
+
+### 13.2 Join with WGI Data
+
+```{r karnik-join}
+df_k <- df %>%
+  left_join(karnik_cty, by = "iso3c") %>%
+  mutate(
+    has_project  = !is.na(n_projects),
+    n_projects   = replace_na(n_projects, 0),
+    log_projects = log1p(n_projects)
+  )
+
+cat(sprintf("Countries with ≥1 project: %d / %d\n",
+            sum(df_k$has_project), nrow(df_k)))
+```
+
+### 13.3 Correlations: Project Count × WGI
+
+```{r karnik-cor}
+cor_k <- map_dfr(wgi_vars, function(wv) {
+  tmp <- df_k %>% filter(!is.na(.data[[wv]]))
+  ct  <- cor.test(tmp$log_projects, tmp[[wv]],
+                  method = "spearman", exact = FALSE)
+  tibble(
+    wgi_var   = wv,
+    wgi_label = wgi_codes[wv],
+    rho       = ct$estimate,
+    p_value   = ct$p.value,
+    sig       = case_when(p_value < 0.001 ~ "***",
+                          p_value < 0.01  ~ "**",
+                          p_value < 0.05  ~ "*",
+                          TRUE            ~ "")
+  )
+})
+
+cor_k %>%
+  mutate(across(c(rho, p_value), ~ round(.x, 4))) %>%
+  knitr::kable(
+    col.names = c("WGI Dim.", "Label", "Spearman ρ", "p-value", "Sig."),
+    caption   = "Spearman ρ: log1p(N projects) × WGI (2024)"
+  )
+```
+
+```{r karnik-cor-bar, fig.height=4, fig.width=7}
+cor_k %>%
+  ggplot(aes(x = rho, y = reorder(wgi_label, rho), fill = rho > 0)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  geom_text(aes(label = paste0(round(rho, 3), sig),
+                x     = rho + ifelse(rho >= 0, 0.01, -0.01)),
+            hjust = ifelse(cor_k$rho >= 0, 0, 1), size = 3.8) +
+  geom_vline(xintercept = 0, linewidth = 0.5) +
+  scale_fill_manual(values = c("TRUE" = "#1a9850", "FALSE" = "#d73027")) +
+  scale_x_continuous(limits = c(-0.5, 0.7), expand = expansion(mult = 0.02)) +
+  labs(title = "Spearman ρ: Carbon Offset Projects × WGI",
+       subtitle = "log1p(N projects per country); * p<0.05  ** p<0.01  *** p<0.001",
+       x = "Spearman ρ", y = NULL)
+```
+
+### 13.4 Potential vs. Realised: NbS Gap Analysis
+
+Countries with high biophysical potential but few market projects represent the
+largest implementation gap. Color encodes income group; size encodes number of
+market projects.
+
+```{r karnik-gap, fig.height=6, fig.width=9}
+df_k %>%
+  filter(total_ncs_tco2e > 0, !is.na(PV.EST)) %>%
+  mutate(
+    log_ncs     = log10(total_ncs_tco2e),
+    label       = if_else(
+      (total_ncs_tco2e > quantile(total_ncs_tco2e, 0.85, na.rm = TRUE) &
+       n_projects == 0) |
+      n_projects > 20,
+      adm0_name, NA_character_
+    )
+  ) %>%
+  ggplot(aes(x = PV.EST, y = log_ncs,
+             color = income_level, size = n_projects + 0.5)) +
+  geom_point(alpha = 0.75) +
+  geom_text_repel(aes(label = label), size = 2.6, max.overlaps = 15,
+                  segment.color = "grey55", show.legend = FALSE) +
+  scale_color_brewer(palette = "RdYlBu", name = "Income", na.value = "grey60") +
+  scale_size_continuous(name = "Market projects", range = c(1.5, 8),
+                        breaks = c(0, 5, 20, 50, 100, 200)) +
+  labs(
+    title    = "Biophysical NbS Potential vs. Political Stability",
+    subtitle = "Point size = number of market carbon offset projects (Karnik 2024)",
+    x        = "Political Stability (WGI 2024)",
+    y        = "Total NbS Potential (log₁₀ tCO₂e/yr)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+### 13.5 Regression: Projects ~ NbS Potential + WGI
+
+Do countries with higher governance implement more market-based NbS, *conditional*
+on biophysical potential?
+
+```{r karnik-reg, fig.height=5}
+df_kreg <- df_k %>%
+  filter(total_ncs_tco2e > 0, !is.na(income_level)) %>%
+  mutate(log_ncs = log10(total_ncs_tco2e),
+         log_proj = log1p(n_projects))
+
+# OLS on log1p(n_projects) — robust to the many-zeros structure
+m_ols <- lm(log_proj ~ log_ncs + CC.EST + GE.EST + PV.EST +
+              RL.EST + RQ.EST + VA.EST + income_level,
+            data = df_kreg)
+
+cat(sprintf("OLS adj. R² = %.3f  |  N = %d\n",
+            summary(m_ols)$adj.r.squared, nobs(m_ols)))
+
+tidy(m_ols, conf.int = TRUE) %>%
+  filter(grepl("^(CC|GE|PV|RL|RQ|VA)", term)) %>%
+  mutate(term = wgi_codes[term]) %>%
+  ggplot(aes(x = estimate, xmin = conf.low, xmax = conf.high,
+             y = reorder(term, estimate),
+             color = p.value < 0.05)) +
+  geom_pointrange(size = 0.8) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_color_manual(values = c("TRUE" = "#d73027", "FALSE" = "grey55"),
+                     guide = "none") +
+  labs(
+    title    = "OLS: log1p(N Carbon Offset Projects) ~ WGI",
+    subtitle = sprintf("Controlling for log10(NbS potential) and income  |  Adj. R² = %.3f",
+                       summary(m_ols)$adj.r.squared),
+    x = "OLS Coefficient (95% CI)", y = NULL
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+## 14. Export Merged Dataset
+
+```{r export}
+export_cols <- c(
+  "iso3c", "adm0_name", "adm0_ha",
+  nbs_biome, nbs_activity, nbs_grand,
+  wgi_vars, "income_level", "region",
+  "n_projects", "n_ad", "n_ifm", "n_arr"
+)
+
+df_export <- df_k %>%
+  select(any_of(export_cols))
+
+write_csv(df_export, here("data/nbs_wgi_merged.csv"))
+cat("Exported", nrow(df_export), "countries →",
+    here("data/nbs_wgi_merged.csv"), "\n")
+```
+
+---
+
+## Session Info
+
+```{r session-info}
+sessionInfo()
+```
